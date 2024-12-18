@@ -424,7 +424,7 @@ export function Globe() {
                     </p>
                     <div className="flex justify-center gap-2 py-5 z-30 relative">
                         <Button><SignInButton></SignInButton></Button>
-                        <Button><SignUpButton></SignUpButton></Button>
+                        <Button variant="secondary"><SignUpButton></SignUpButton></Button>
                     </div>
 
                 </motion.div>
