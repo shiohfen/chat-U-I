@@ -9,48 +9,26 @@ import {
     Search,
     Send,
     Check,
-    ArrowDown
+    ArrowDown,
+    Plus
 } from "lucide-react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { SignedIn, UserButton,useUser } from "@clerk/nextjs";
+import { SignedIn, UserButton, useUser } from "@clerk/nextjs";
+import Loading from "./loading";
+import Messages from "@/components/messages";
+import { createClient } from "@/utils/supabase/client";
 
 export default function Chats() {
-    // const links = [
-    //     {
-    //         label: "Dashboard",
-    //         href: "#",
-    //         icon: (
-    //             <Layout className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
-    //         ),
-    //     },
-    //     {
-    //         label: "Profile",
-    //         href: "#",
-    //         icon: (
-    //             <CircleUser className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
-    //         ),
-    //     },
-    //     {
-    //         label: "Settings",
-    //         href: "#",
-    //         icon: (
-    //             <Settings className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
-    //         ),
-    //     },
-    //     {
-    //         label: "Logout",
-    //         href: "#",
-    //         icon: (
-    //             <ArrowLeft className="text-neutral-700 dark:text-neutral-200 h-5 w-5 flex-shrink-0" />
-    //         ),
-    //     },
-    // ];
+    const { isLoaded, user } = useUser();
     const [open, setOpen] = useState(true);
     const [showScrollButton, setShowScrollButton] = useState(false);
+    const [messageInput, setMessageInput] = useState("");
+    const [isSending, setIsSending] = useState(false);
     const messagesEndRef = useRef(null);
     const messagesContainerRef = useRef(null);
+    const supabase = createClient();
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -62,11 +40,45 @@ export default function Chats() {
         setShowScrollButton(!isNearBottom);
     };
 
-    const { user } = useUser()
-
     useEffect(() => {
         scrollToBottom();
     }, []);
+
+    if (!isLoaded) {
+        return <Loading />;
+    } else if (user) {
+        scrollToBottom();
+    }
+
+    async function handleSendMessage() {
+        if (!messageInput.trim() || isSending) return;
+
+        try {
+            setIsSending(true);
+
+            const { error } = await supabase
+                .from('messages')
+                .insert([
+                    {
+                        message: messageInput.trim(),
+                        user_id: user?.id,
+                        message_type: "private",
+                        updated_at: new Date().toISOString(),
+                        created_at: new Date().toISOString()
+                    }
+                ]);
+
+            if (error) throw error;
+
+            setMessageInput("");
+            scrollToBottom();
+        } catch (error) {
+            console.error('Error sending message:', error);
+            alert('Failed to send message. Please try again.');
+        } finally {
+            setIsSending(false);
+        }
+    }
 
     return (
         (<div
@@ -105,8 +117,8 @@ export default function Chats() {
                     <div>
                         <SignedIn>
                             <div className="flex items-center gap-2">
-                            <UserButton/>
-                            {open && <p>{user.fullName}</p>}
+                                <UserButton />
+                                {open && <p>{user.fullName}</p>}
                             </div>
                         </SignedIn>
                     </div>
@@ -116,16 +128,24 @@ export default function Chats() {
                 <div className="p-2 rounded-tl-2xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 flex gap-2 w-full h-full">
                     <div className="h-full w-1/3 rounded-lg bg-gray-100 dark:bg-neutral-800 overflow-y-auto">
                         <div className="p-4">
-                            <div className="relative">
-                                <input 
-                                    type="text" 
-                                    placeholder="Search chats..."
-                                    className="w-full p-2 pl-8 rounded-lg bg-gray-200 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                />
-                                <Search className="w-4 h-4 absolute left-2 top-3 text-gray-500" />
+                            <div className="flex gap-2">
+                                <div className="relative flex-1">
+                                    <input
+                                        type="text"
+                                        placeholder="Search chats..."
+                                        className="w-full p-2 pl-8 rounded-lg bg-gray-200 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    />
+                                    <Search className="w-4 h-4 absolute left-2 top-3 text-gray-500" />
+                                </div>
+                                <button
+                                    className="p-2 rounded-full bg-blue-500 hover:bg-blue-600 text-white"
+                                    onClick={() => {/* Add new chat logic here */ }}
+                                >
+                                    <Plus className="w-6 h-6" />
+                                </button>
                             </div>
                         </div>
-                        
+
                         <div className="flex flex-col">
                             <div className="p-3 flex gap-3 items-center bg-blue-500/10 border-l-4 border-blue-500 cursor-pointer hover:bg-blue-500/20">
                                 <div className="relative">
@@ -180,77 +200,33 @@ export default function Chats() {
                         </div>
                         <div className="p-5 flex flex-col gap-4 flex-1 overflow-y-auto" ref={messagesContainerRef} onScroll={handleScroll}>
                             <div className="text-center text-sm text-gray-500 my-2">December 17, 2024</div>
-                            <div className="text-left">
-                                <span className="bg-gray-200 dark:bg-neutral-700 p-3 rounded-2xl rounded-tl-none inline-block max-w-[80%] relative">
-                                    Hi! I saw your profile and I think we could collaborate on some projects 😊
-                                    <div className="text-xs text-gray-500 mt-1">9:30 AM</div>
-                                </span>
-                            </div>
-                            <div className="text-right">
-                                <span className="bg-blue-500 text-white p-3 rounded-2xl rounded-tr-none inline-block max-w-[80%] relative">
-                                    Hey Sarah! That sounds great! What kind of projects do you have in mind?
-                                    <div className="text-xs text-blue-200 mt-1 flex items-center justify-end gap-1">
-                                        9:45 AM
-                                        <Check className="w-4 h-4 inline" />
-                                    </div>
-                                </span>
-                            </div>
-                            <div className="text-left">
-                                <span className="bg-gray-200 dark:bg-neutral-700 p-3 rounded-2xl rounded-tl-none inline-block max-w-[80%] relative">
-                                    I'm working on a Next.js e-commerce platform and could use your expertise!
-                                    <div className="text-xs text-gray-500 mt-1">10:15 AM</div>
-                                </span>
-                            </div>
-                            <div className="text-right">
-                                <span className="bg-blue-500 text-white p-3 rounded-2xl rounded-tr-none inline-block max-w-[80%] relative">
-                                    Perfect timing! I just wrapped up a similar project. Would love to help out 👍
-                                    <div className="text-xs text-blue-200 mt-1 flex items-center justify-end gap-1">
-                                        10:30 AM
-                                        <Check className="w-4 h-4 inline" />
-                                    </div>
-                                </span>
-                            </div>
-                            <div className="text-center text-sm text-gray-500 my-2">Today</div>
-                            <div className="text-left">
-                                <span className="bg-gray-200 dark:bg-neutral-700 p-3 rounded-2xl rounded-tl-none inline-block max-w-[80%] relative">
-                                    Great! When would you be available for a quick call to discuss the details?
-                                    <div className="text-xs text-gray-500 mt-1">2:30 PM</div>
-                                </span>
-                            </div>
-                            <div className="text-right">
-                                <span className="bg-blue-500 text-white p-3 rounded-2xl rounded-tr-none inline-block max-w-[80%] relative">
-                                    I'm free tomorrow afternoon. How about 2 PM?
-                                    <div className="text-xs text-blue-200 mt-1 flex items-center justify-end gap-1">
-                                        2:45 PM
-                                        <Check className="w-4 h-4 inline" />
-                                    </div>
-                                </span>
-                            </div>
-                            <div className="text-left">
-                                <span className="bg-gray-200 dark:bg-neutral-700 p-3 rounded-2xl rounded-tl-none inline-block max-w-[80%] relative">
-                                    Perfect! I'll send you a meeting link shortly.
-                                    <div className="text-xs text-gray-500 mt-1">2:50 PM</div>
-                                </span>
-                            </div>
-                            <div className="text-right">
-                                <span className="bg-blue-500 text-white p-3 rounded-2xl rounded-tr-none inline-block max-w-[80%] relative">
-                                    Sounds good! Looking forward to it! 🎯
-                                    <div className="text-xs text-blue-200 mt-1 flex items-center justify-end gap-1">
-                                        2:51 PM
-                                        <Check className="w-4 h-4 inline" />
-                                    </div>
-                                </span>
-                            </div>
+                            <Messages />
                             <div ref={messagesEndRef} />
                         </div>
                         <div className="p-4 border-t border-neutral-700">
                             <div className="flex gap-2">
-                                <input 
-                                    type="text" 
+                                <input
+                                    type="text"
                                     placeholder="Type a message..."
                                     className="w-full p-2 rounded-full bg-gray-200 dark:bg-neutral-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    value={messageInput}
+                                    onChange={(e) => setMessageInput(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' && !e.shiftKey) {
+                                            e.preventDefault();
+                                            handleSendMessage();
+                                        }
+                                    }}
+                                    disabled={isSending}
                                 />
-                                <button className="p-2 rounded-full bg-blue-500 text-white hover:bg-blue-600 transition-colors">
+                                <button
+                                    className={cn(
+                                        "p-2 rounded-full bg-blue-500 text-white transition-colors",
+                                        isSending ? "opacity-50 cursor-not-allowed" : "hover:bg-blue-600"
+                                    )}
+                                    onClick={handleSendMessage}
+                                    disabled={isSending}
+                                >
                                     <Send className="w-6 h-6" />
                                 </button>
                             </div>
