@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 import { SignedIn, UserButton, useUser } from "@clerk/nextjs";
 import Loading from "./loading";
 import Messages from "@/components/messages";
-import { createClient } from "@/utils/supabase/client";
+import { createClerkSupabaseClient } from "@/utils/supabase/client";
 
 export default function Chats() {
     const { isLoaded, user } = useUser();
@@ -28,7 +28,7 @@ export default function Chats() {
     const [isSending, setIsSending] = useState(false);
     const messagesEndRef = useRef(null);
     const messagesContainerRef = useRef(null);
-    const supabase = createClient();
+    const supabase = createClerkSupabaseClient();
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -46,8 +46,6 @@ export default function Chats() {
 
     if (!isLoaded) {
         return <Loading />;
-    } else if (user) {
-        scrollToBottom();
     }
 
     async function handleSendMessage() {
